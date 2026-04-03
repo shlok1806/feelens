@@ -123,8 +123,133 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+    -webkit-font-smoothing: antialiased;
   }
   html {
     @apply font-sans;
   }
+}
+
+/* FeeLens design tokens — Light */
+:root {
+  --fl-bg: #FAFBFC;
+  --fl-surface: #FFFFFF;
+  --fl-surface-hover: #F8FAFC;
+  --fl-surface-raised: #FFFFFF;
+  --fl-border: #E5E7EB;
+  --fl-border-subtle: #F3F4F6;
+  --fl-text-primary: #0F172A;
+  --fl-text-secondary: #475569;
+  --fl-text-tertiary: #94A3B8;
+  --fl-indigo: #4F46E5;
+  --fl-indigo-hover: #4338CA;
+  --fl-indigo-light: #EEF2FF;
+  --fl-indigo-mid: #6366F1;
+  --fl-red: #EF4444;
+  --fl-red-light: #FEF2F2;
+  --fl-red-text: #DC2626;
+  --fl-green: #10B981;
+  --fl-green-light: #ECFDF5;
+  --fl-green-text: #059669;
+  --fl-amber: #F59E0B;
+  --fl-amber-light: #FFFBEB;
+  --fl-purple-light: #F5F3FF;
+  --fl-blue-light: #EFF6FF;
+  --fl-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --fl-shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --fl-shadow-lg: 0 4px 12px 0 rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --fl-glass: rgba(255, 255, 255, 0.8);
+  --fl-glass-border: rgba(255, 255, 255, 0.5);
+}
+
+/* FeeLens design tokens — Dark */
+.dark {
+  --fl-bg: #0B0F1A;
+  --fl-surface: #151B2B;
+  --fl-surface-hover: #1A2236;
+  --fl-surface-raised: #1E2740;
+  --fl-border: #1E293B;
+  --fl-border-subtle: #1A2236;
+  --fl-text-primary: #F1F5F9;
+  --fl-text-secondary: #94A3B8;
+  --fl-text-tertiary: #64748B;
+  --fl-indigo: #818CF8;
+  --fl-indigo-hover: #6366F1;
+  --fl-indigo-light: rgba(99, 102, 241, 0.12);
+  --fl-indigo-mid: #A5B4FC;
+  --fl-red: #F87171;
+  --fl-red-light: rgba(239, 68, 68, 0.1);
+  --fl-red-text: #FCA5A5;
+  --fl-green: #34D399;
+  --fl-green-light: rgba(16, 185, 129, 0.1);
+  --fl-green-text: #6EE7B7;
+  --fl-amber: #FBBF24;
+  --fl-amber-light: rgba(245, 158, 11, 0.1);
+  --fl-purple-light: rgba(139, 92, 246, 0.1);
+  --fl-blue-light: rgba(59, 130, 246, 0.1);
+  --fl-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.15);
+  --fl-shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.15);
+  --fl-shadow-lg: 0 4px 12px 0 rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.15);
+  --fl-glass: rgba(21, 27, 43, 0.85);
+  --fl-glass-border: rgba(30, 41, 59, 0.6);
+}
+
+/* Premium card style */
+.fl-card {
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-radius: 16px;
+  box-shadow: var(--fl-shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.fl-card:hover {
+  box-shadow: var(--fl-shadow-md);
+}
+
+/* Glassmorphism card */
+.fl-glass {
+  background: var(--fl-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--fl-glass-border);
+  border-radius: 16px;
+}
+
+/* Metric number style */
+.fl-metric {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* Override for charts and animations */
+.recharts-wrapper *, .animate-pulse * {
+  transition: none !important;
+}
+
+/* Focus visible ring */
+:focus-visible {
+  outline: 2px solid var(--fl-indigo);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--fl-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fl-text-tertiary);
 }

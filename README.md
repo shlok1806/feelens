@@ -1,36 +1,203 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FeeLens — Stripe Fee Intelligence Dashboard
+
+> See exactly where your Stripe fees go. Get AI-powered recommendations to lower your effective rate.
+
+FeeLens is a full-stack analytics dashboard built for startups on Stripe. Most companies pay 0.3-0.5% above Stripe's nominal 2.9% rate without knowing it — due to Amex premiums, international surcharges, refund fee retention, and dispute fees. FeeLens surfaces these hidden costs and gives you a clear action plan to reduce them.
+
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-green)
+
+---
+
+## Features
+
+- **True Effective Rate** — Your real blended rate broken down by card brand, payment method, and geography
+- **Fee Leakage Detection** — Surfaces refund fee retention, international surcharges, won-dispute fees, and Amex premiums
+- **AI Fee Optimizer** — Analyzes your breakdown and provides ranked, actionable recommendations with estimated monthly savings
+- **Month-over-Month Comparison** — Track rate changes, fee deltas, and volume trends
+- **Dark/Light Mode** — Premium theming with smooth transitions and glassmorphism effects
+- **Demo Mode** — Full dashboard experience with sample data at `/demo`, no credentials needed
+
+---
+
+## Tech Stack
+
+| Layer       | Technology                                              |
+|-------------|--------------------------------------------------------|
+| Framework   | Next.js 16 (App Router, Turbopack)                     |
+| Language    | TypeScript 5                                            |
+| Styling     | Tailwind CSS 4 + CSS custom properties + shadcn/ui     |
+| Database    | Supabase (Postgres + Auth + Row Level Security)         |
+| Payments    | Stripe Node SDK (read-only: balance_transactions, charges, disputes) |
+| AI          | Anthropic API for fee optimization recommendations      |
+| Charts      | Recharts                                                |
+| Deployment  | Vercel                                                  |
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- A Supabase project (free tier works)
+- A Stripe account (test mode is fine)
+- An Anthropic API key (for AI recommendations)
+
+### Installation
+
+```bash
+git clone https://github.com/your-username/feelens.git
+cd feelens
+npm install
+```
+
+### Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Anthropic (for AI recommendations)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Encryption key for Stripe keys at rest (generate with: openssl rand -hex 32)
+STRIPE_KEY_ENCRYPTION_SECRET=your-32-byte-hex-string
+
+# App URL (for API route calls)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### Database Setup
+
+Run the migration SQL in your Supabase SQL editor:
+
+```bash
+# The migration file is at:
+supabase/migrations/001_initial.sql
+```
+
+This creates the required tables with Row Level Security policies.
+
+### Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) for the landing page, or [http://localhost:3000/demo](http://localhost:3000/demo) for the demo dashboard.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+feelens/
+├── app/
+│   ├── page.tsx                    # Landing page
+│   ├── demo/page.tsx               # Public demo dashboard (no auth)
+│   ├── (auth)/login/page.tsx       # Auth page
+│   ├── dashboard/
+│   │   ├── page.tsx                # Connect Stripe form
+│   │   └── overview/page.tsx       # Authenticated dashboard
+│   └── api/
+│       ├── stripe/connect          # Validate + store Stripe key
+│       ├── stripe/sync             # Sync Stripe data
+│       ├── analytics/*             # Summary, breakdown, leakage, compare
+│       └── ai/recommend            # AI recommendations
+├── components/
+│   ├── dashboard/                  # SummaryMetrics, FeeBreakdownChart, etc.
+│   ├── demo/                       # DemoBanner, DemoNav
+│   ├── ui/                         # shadcn/ui primitives
+│   ├── ThemeProvider.tsx           # Dark/light mode context
+│   ├── ThemeToggle.tsx             # Theme switch button
+│   └── Toast.tsx                   # Toast notification system
+├── lib/
+│   ├── stripe/                     # Stripe client, fetcher, calculator
+│   ├── supabase/                   # Supabase client (browser + server)
+│   ├── demo/seed.ts                # Static demo dataset
+│   ├── crypto.ts                   # AES-256-GCM encryption
+│   └── utils.ts                    # Formatters and helpers
+└── types/index.ts                  # Shared TypeScript interfaces
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How It Works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Stripe Data Pipeline
 
-## Deploy on Vercel
+1. User provides a **restricted Stripe key** (read-only)
+2. Key is validated against Stripe's API, then **AES-256-GCM encrypted** and stored
+3. The sync pipeline fetches `balance_transactions` (Stripe's authoritative ledger) and enriches each charge with card brand and country data
+4. Refund fee leakage and dispute records are computed and stored separately
+5. All data is bucketed by month for fast aggregation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Fee Leakage Logic
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Leakage Type | Calculation |
+|---|---|
+| Refund fee retention | `(refundAmount / originalAmount) * originalFee` |
+| Amex premium | `amexVolume * (3.5% - 2.9%)` |
+| International surcharge | `internationalVolume * 1.5%` |
+| Won dispute fees | `wonDisputeCount * $15` |
+
+### AI Recommendations
+
+The AI receives your full fee breakdown as structured data and returns ranked, actionable recommendations with conservative savings estimates. Results are cached by a SHA-256 hash of the input data to avoid redundant API calls.
+
+---
+
+## UAT Checklist
+
+### Demo Flow (no auth required)
+- [ ] Visit `/demo` — full dashboard loads with sample data
+- [ ] All 4 summary metric cards display correctly
+- [ ] Fee Breakdown chart tabs work (By Brand, By Method, By Geo)
+- [ ] Card Brand table shows 4 brands sorted by fee impact
+- [ ] Fee Leakage section shows 4 items, expandable on click
+- [ ] AI Recommendations shows 3 cards, "Show 2 more" expands
+- [ ] Month Comparison delta pills and rate arrow render
+- [ ] Theme toggle switches between light and dark mode
+- [ ] Dark mode renders correctly across all components
+- [ ] Mobile responsive — cards stack vertically on small screens
+
+### Auth Flow
+- [ ] Visit `/login` — sign up form works
+- [ ] Email confirmation flow completes
+- [ ] Sign in redirects to `/dashboard`
+- [ ] Without Stripe connection — shows Connect form
+- [ ] Invalid Stripe key — shows error message
+- [ ] Valid `sk_test_*` key — syncs data and redirects to overview
+
+### Authenticated Dashboard
+- [ ] `/dashboard/overview` shows real Stripe data
+- [ ] Summary metrics match Stripe's own reporting
+- [ ] Sign out clears session and redirects to login
+- [ ] RLS: cannot access another user's data
+
+### Landing Page
+- [ ] `/` renders hero, stats, features, CTA
+- [ ] "See live demo" links to `/demo`
+- [ ] "Connect Stripe" links to `/login`
+- [ ] Dark mode toggle works on landing page
+
+---
+
+## Security
+
+- Stripe keys are **AES-256-GCM encrypted** at the application layer before storage
+- Only **restricted keys** with read-only permissions are accepted
+- All database tables enforce **Row Level Security** — users can only access their own data
+- No customer PII or payout data is ever accessed
+
+---
+
+## License
+
+MIT
