@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template must be committed, or the repo cannot be configured
+# from a clean clone. The bare .env* rule silently swallowed it.
+!.env.example
 
 # vercel
 .vercel
