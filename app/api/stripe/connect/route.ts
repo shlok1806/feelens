@@ -45,6 +45,9 @@ export async function POST(request: Request) {
 
     return NextResponse.redirect(new URL('/dashboard/overview', request.url))
   } catch (err) {
+    // Logged rather than swallowed: a silent 500 here is indistinguishable
+    // from a working route in production logs.
+    console.error('[stripe/connect]', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

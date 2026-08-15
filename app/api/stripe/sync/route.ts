@@ -6,7 +6,7 @@ import { fetchBalanceTransactions } from '@/lib/stripe/fetcher'
 
 export const maxDuration = 60
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

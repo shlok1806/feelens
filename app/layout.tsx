@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
@@ -21,6 +21,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geist.variable} antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Blocking: sets the theme class before first paint, so dark-mode
+            users never see a light frame. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-screen" style={{ background: 'var(--fl-bg)', color: 'var(--fl-text-primary)' }}>
         <ThemeProvider>
           <ToastProvider>{children}</ToastProvider>

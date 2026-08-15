@@ -6,7 +6,7 @@ import { CardBrandTable } from '@/components/dashboard/CardBrandTable'
 import { LeakageList } from '@/components/dashboard/LeakageList'
 import { AIRecommendations } from '@/components/dashboard/AIRecommendations'
 import { MonthComparison } from '@/components/dashboard/MonthComparison'
-import { LogOut, RefreshCw } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 
 export const metadata = { title: 'Overview — FeeLens' }
 

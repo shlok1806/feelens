@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, typecheck, build, boot
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders only. Next reads these at build time; real values live in
+      # the deploy environment. They must be present and syntactically valid or
+      # the Supabase client throws during prerender.
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      STRIPE_KEY_ENCRYPTION_SECRET: Y2ktcGxhY2Vob2xkZXItMzJieXRlcy1zZWNyZXQhIQ==
+      ANTHROPIC_API_KEY: sk-ant-ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Boot the production server and assert it serves
+        # Building is not evidence that the app runs. This starts the built
+        # server and checks that a real page renders.
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/login >/dev/null && ok=1 && break
+            sleep 2
+          done
+          if [ "$ok" != "1" ]; then echo "::error::server never served /login"; exit 1; fi
+          for path in / /login /demo; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000$path")
+            echo "$path -> $code"
+            [ "$code" -lt 400 ] || { echo "::error::$path returned $code"; exit 1; }
+          done
+
+  env-example-is-current:
+    name: .env.example covers every process.env read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare code against .env.example
+        # Drift here is what makes a repo unrunnable from a fresh clone.
+        run: |
+          grep -rhoE 'process\.env\.[A-Z0-9_]+' app lib components proxy.ts types 2>/dev/null \
+            | sed 's/process\.env\.//' | sort -u > /tmp/used.txt
+          grep -oE '^[A-Z0-9_]+' .env.example | sort -u > /tmp/documented.txt
+          missing=$(comm -23 /tmp/used.txt /tmp/documented.txt)
+          if [ -n "$missing" ]; then
+            echo "::error::these are read in code but absent from .env.example:"
+            echo "$missing"
+            exit 1
+          fi
+          echo "All referenced env vars are documented."
