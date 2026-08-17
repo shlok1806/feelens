@@ -1,11 +1,37 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { createHash } from 'crypto'
 import type { SummaryData, BreakdownData, LeakageData, Recommendation } from '@/types'
 import { formatCurrency, formatRate } from '@/lib/utils'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// NVIDIA NIM exposes an OpenAI-compatible API, so the OpenAI SDK is the client.
+//
+// Constructed lazily, not at module scope: the OpenAI SDK throws
+// "Missing credentials" in its constructor when apiKey is undefined, and Next
+// evaluates this module during `next build` page-data collection. At module
+// scope that turns a missing env var into a hard build failure rather than a
+// runtime error on one route.
+let _llm: OpenAI | null = null
+function getLLM(): OpenAI {
+  if (!_llm) {
+    _llm = new OpenAI({
+      apiKey: process.env.NVIDIA_API_KEY,
+      baseURL: process.env.LLM_BASE_URL ?? 'https://integrate.api.nvidia.com/v1',
+    })
+  }
+  return _llm
+}
+const LLM_MODEL = process.env.LLM_MODEL ?? 'meta/llama-3.3-70b-instruct'
+
+// This model ignores a bare "respond with JSON" instruction often enough to
+// matter, so JSON mode is enforced on the request and restated in a system
+// message. json_object mode requires an object, which the existing
+// {"recommendations": [...]} contract already is.
+const SYSTEM_PROMPT =
+  'You are a payments cost analyst. You reply with a single JSON object and nothing else — ' +
+  'no prose, no markdown code fences. The object has exactly one key, "recommendations", ' +
+  'whose value is an array.'
 
 function buildPrompt(summary: SummaryData, breakdown: BreakdownData, leakage: LeakageData): string {
   const brandTable = breakdown.byCardBrand
@@ -104,19 +130,39 @@ export async function POST(request: Request) {
     }
 
     // Generate AI-powered fee recommendations
-    const prompt = buildPrompt(summary, breakdown, leakage)
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const content = message.content[0]
-    if (content.type !== 'text') {
-      return NextResponse.json({ error: 'Unexpected AI response format' }, { status: 500 })
+    if (!process.env.NVIDIA_API_KEY) {
+      return NextResponse.json({ error: 'NVIDIA_API_KEY is not configured' }, { status: 503 })
     }
 
-    const parsed = JSON.parse(content.text) as { recommendations: Recommendation[] }
+    const prompt = buildPrompt(summary, breakdown, leakage)
+    const completion = await getLLM().chat.completions.create({
+      model: LLM_MODEL,
+      max_tokens: 2048,
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+    })
+
+    const text = completion.choices[0]?.message?.content
+    if (!text) {
+      return NextResponse.json({ error: 'Empty AI response' }, { status: 502 })
+    }
+
+    let parsed: { recommendations: Recommendation[] }
+    try {
+      parsed = JSON.parse(text) as { recommendations: Recommendation[] }
+    } catch {
+      console.error('AI returned unparseable JSON:', text.slice(0, 300))
+      return NextResponse.json({ error: 'AI returned malformed output' }, { status: 502 })
+    }
+
+    if (!Array.isArray(parsed.recommendations)) {
+      console.error('AI response missing recommendations array:', text.slice(0, 300))
+      return NextResponse.json({ error: 'AI returned malformed output' }, { status: 502 })
+    }
 
     // Cache result
     await supabase.from('ai_recommendations').upsert({

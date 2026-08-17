@@ -22,7 +22,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       STRIPE_KEY_ENCRYPTION_SECRET: Y2ktcGxhY2Vob2xkZXItMzJieXRlcy1zZWNyZXQhIQ==
-      ANTHROPIC_API_KEY: sk-ant-ci-placeholder
+      NVIDIA_API_KEY: nvapi-ci-placeholder
+      LLM_BASE_URL: https://integrate.api.nvidia.com/v1
+      LLM_MODEL: meta/llama-3.3-70b-instruct
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
